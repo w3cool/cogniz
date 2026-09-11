@@ -2,23 +2,30 @@ services:
     cogniz-web:
         container_name: cogniz-web
         build:
-            context: ./web
-            dockerfile: dev.Dockerfile
-
-        # Set environment variables directly in the compose file
-        environment:
-            ENV_VARIABLE: ${ENV_VARIABLE}
-            NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
-
-        # Set environment variables based on the .env file
-        env_file:
-            - ./web/.env
+            context: ./cogniz-web
+            dockerfile: Dockerfile.dev
+        init: true
         volumes:
-            - ./web/src:/app/src
-            - ./web/public:/app/public
+            - ./cogniz-web:/app
+            - web_node_modules:/app/node_modules
+            - web_next:/app/apps/web/.next
         restart: always
         ports:
             - 3000:3000
+        networks:
+            - my_network
+
+    cogniz-api:
+        container_name: cogniz-api
+        build:
+            context: ./cogniz-api
+            dockerfile: Dockerfile.dev
+        init: true
+        volumes:
+            - ./cogniz-api:/app
+        restart: always
+        ports:
+            - "8000:8000"
         networks:
             - my_network
 
@@ -37,6 +44,8 @@ services:
             - my_network
 
 volumes:
+    web_node_modules:
+    web_next:
     postgres_data:
 
     # Add more containers below (nginx, postgres, etc.)
