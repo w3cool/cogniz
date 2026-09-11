@@ -1,0 +1,6 @@
+[submodule "cogniz-api"]
+	path = cogniz-api
+	url = https://github.com/w3cool/cogniz-api.git
+[submodule "cogniz-web"]
+	path = cogniz-web
+	url = https://github.com/w3cool/cogniz-web.git
