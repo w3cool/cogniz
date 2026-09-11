@@ -5,6 +5,11 @@ services:
             context: ./cogniz-web
             dockerfile: Dockerfile.dev
         init: true
+        environment:
+            API_INTERNAL_URL: http://cogniz-api:8000
+        depends_on:
+            cogniz-api:
+                condition: service_healthy
         volumes:
             - ./cogniz-web:/app
             - web_node_modules:/app/node_modules
@@ -21,6 +26,19 @@ services:
             context: ./cogniz-api
             dockerfile: Dockerfile.dev
         init: true
+        environment:
+            DATABASE_URL: postgresql://postgres:password@postgres:5432/cogniz
+            ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+            COOKIE_SECURE: "false"
+        healthcheck:
+            test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 15s
+        depends_on:
+            postgres:
+                condition: service_healthy
         volumes:
             - ./cogniz-api:/app
         restart: always
@@ -31,6 +49,11 @@ services:
 
     postgres:
         image: postgres:17
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres -d cogniz"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
         restart: always
         environment:
             POSTGRES_USER: postgres
