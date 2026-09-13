@@ -1,81 +1,93 @@
 services:
-    cogniz-web:
-        container_name: cogniz-web
-        build:
-            context: ./cogniz-web
-            dockerfile: Dockerfile.dev
-        init: true
-        environment:
-            API_INTERNAL_URL: http://cogniz-api:8000
-        depends_on:
-            cogniz-api:
-                condition: service_healthy
-        volumes:
-            - ./cogniz-web:/app
-            - web_node_modules:/app/node_modules
-            - web_next:/app/apps/web/.next
-        restart: always
-        ports:
-            - 3000:3000
-        networks:
-            - my_network
+  cogniz-web:
+    build:
+      context: ./cogniz-web
+      dockerfile: Dockerfile.dev
+    init: true
+    environment:
+      API_INTERNAL_URL: http://${API_INTERNAL_HOST}:${API_INTERNAL_PORT}
+    depends_on:
+      cogniz-api:
+        condition: service_healthy
+    volumes:
+      - ./cogniz-web:/app
+      - web_node_modules:/app/node_modules
+      - web_next:/app/apps/web/.next
+    restart: unless-stopped
+    ports:
+      - "${WEB_BIND_ADDRESS}:${WEB_PORT}:3000"
+    networks:
+      - cogniz
 
-    cogniz-api:
-        container_name: cogniz-api
-        build:
-            context: ./cogniz-api
-            dockerfile: Dockerfile.dev
-        init: true
-        environment:
-            DATABASE_URL: postgresql://postgres:password@postgres:5432/cogniz
-            ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-            COOKIE_SECURE: "false"
-        healthcheck:
-            test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
-            interval: 5s
-            timeout: 5s
-            retries: 10
-            start_period: 15s
-        depends_on:
-            postgres:
-                condition: service_healthy
-        volumes:
-            - ./cogniz-api:/app
-        restart: always
-        ports:
-            - "8000:8000"
-        networks:
-            - my_network
+  cogniz-api:
+    build:
+      context: ./cogniz-api
+      dockerfile: Dockerfile.dev
+    init: true
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS}
+      COOKIE_SECURE: "false"
+      API_ROOT_PATH: ""
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./cogniz-api:/app
+    restart: unless-stopped
+    ports:
+      - "${API_BIND_ADDRESS}:${API_PORT}:8000"
+    networks:
+      - cogniz
 
-    postgres:
-        image: postgres:17
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U postgres -d cogniz"]
-            interval: 5s
-            timeout: 5s
-            retries: 10
-        restart: always
-        environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_DB: cogniz
-        ports:
-            - "5432:5432"
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-        networks:
-            - my_network
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_BIND_ADDRESS}:${POSTGRES_PORT}:5432"
+    volumes:
+      - ${DATA_DIR}/postgres:/var/lib/postgresql/data
+    networks:
+      - cogniz
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    ports:
+      - "${REDIS_BIND_ADDRESS}:${REDIS_PORT}:6379"
+    volumes:
+      - ${DATA_DIR}/redis:/data
+    networks:
+      - cogniz
 
 volumes:
-    web_node_modules:
-    web_next:
-    postgres_data:
+  web_node_modules:
+  web_next:
 
-    # Add more containers below (nginx, postgres, etc.)
-
-# Define a network, which allows containers to communicate
-# with each other, by using their container name as a hostname
 networks:
-    my_network:
-        driver: bridge
-        # external: true
+  cogniz:
+    driver: bridge

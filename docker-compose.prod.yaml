@@ -1,22 +1,93 @@
 services:
-  next-app:
-    container_name: next-app
+  cogniz-web:
+    image: cogniz-web:prod
     build:
-      context: ./next-app
-      dockerfile: prod.Dockerfile
+      context: ./cogniz-web
+      dockerfile: Dockerfile.prod
       args:
-        ENV_VARIABLE: ${ENV_VARIABLE}
-        NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
-    restart: always
+        API_INTERNAL_URL: http://${API_INTERNAL_HOST}:${API_INTERNAL_PORT}
+    init: true
+    environment:
+      API_INTERNAL_URL: http://${API_INTERNAL_HOST}:${API_INTERNAL_PORT}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      cogniz-api:
+        condition: service_healthy
+    restart: unless-stopped
     ports:
-      - 3000:3000
+      - "${WEB_BIND_ADDRESS}:${WEB_PORT}:3000"
     networks:
-      - my_network
+      - cogniz
 
-  # Add more containers below (nginx, postgres, etc.)
+  cogniz-api:
+    image: cogniz-api:prod
+    build:
+      context: ./cogniz-api
+      dockerfile: Dockerfile.prod
+    init: true
+    command: ["fastapi", "run", "src/main.py", "--host", "0.0.0.0", "--port", "${API_INTERNAL_PORT}", "--workers", "${API_WORKERS}"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_ORIGINS: ${WEB_ORIGIN}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      API_ROOT_PATH: ${API_PUBLIC_PATH}
+      DATABASE_POOL_MIN_SIZE: ${DATABASE_POOL_MIN_SIZE}
+      DATABASE_POOL_MAX_SIZE: ${DATABASE_POOL_MAX_SIZE}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_INTERNAL_PORT}/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    expose:
+      - "${API_INTERNAL_PORT}"
+    networks:
+      - cogniz
 
-# Define a network, which allows containers to communicate
-# with each other, by using their container name as a hostname
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    expose:
+      - "5432"
+    volumes:
+      - ${DATA_DIR}/postgres:/var/lib/postgresql/data
+    networks:
+      - cogniz
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - ${DATA_DIR}/redis:/data
+    networks:
+      - cogniz
+
 networks:
-  my_network:
-    external: true
+  cogniz:
+    driver: bridge
