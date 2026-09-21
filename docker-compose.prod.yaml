@@ -36,8 +36,9 @@ services:
       DATABASE_POOL_MIN_SIZE: ${DATABASE_POOL_MIN_SIZE}
       DATABASE_POOL_MAX_SIZE: ${DATABASE_POOL_MAX_SIZE}
       DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT}
+      AI_PROVIDER_ENCRYPTION_KEY: ${AI_PROVIDER_ENCRYPTION_KEY:?Set AI_PROVIDER_ENCRYPTION_KEY}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_INTERNAL_PORT}/health', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_INTERNAL_PORT}/health', timeout=5)"]
       interval: 10s
       timeout: 5s
       retries: 10

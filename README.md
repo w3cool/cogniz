@@ -52,4 +52,4 @@ docker compose \
 | `REDIS_BIND_ADDRESS` / `REDIS_PORT` | Redis 开发环境宿主机监听地址与端口 |
 | `DATA_DIR` | PostgreSQL 与 Redis 的宿主机持久化根目录 |
 
-生产数据库密码保存在被 Git 忽略的 `config/compose.prod.secrets.env`，不放入公开地址配置文件。
+生产数据库密码与 AI 供应商配置加密密钥保存在被 Git 忽略的 `config/compose.prod.secrets.env`，不放入公开地址配置文件。`AI_PROVIDER_ENCRYPTION_KEY` 写入供应商 API Key 后必须保持稳定，否则已有密钥将无法解密。
