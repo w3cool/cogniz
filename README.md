@@ -1,6 +1,6 @@
 # Cogniz
 
-Cogniz 由 Next.js 前端、FastAPI 后端、PostgreSQL 和 Redis 组成。开发与生产环境的公开域名、端口和容器内部地址分别保存在 `config/compose.dev.env`、`config/compose.prod.env`。
+Cogniz 由 Next.js 前端、FastAPI 后端、PostgreSQL 和 Redis 组成。登录后 AI 工作区位于 `/ai`，平台管理后台位于 `/admin`。开发与生产环境的公开域名、端口和容器内部地址分别保存在 `config/compose.dev.env`、`config/compose.prod.env`。
 
 PostgreSQL 和 Redis 使用宿主机目录持久化：开发数据位于 `data/dev/`，生产数据位于 `data/prod/`。可通过对应环境配置中的 `DATA_DIR` 修改根路径。
 
@@ -15,6 +15,8 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml up -
 | 服务 | 地址 |
 | --- | --- |
 | 前端 | `http://localhost:3000` |
+| AI 工作区 | `http://localhost:3000/ai` |
+| 平台管理后台 | `http://localhost:3000/admin` |
 | 后端 | `http://localhost:8000` |
 | 前端同域 API | `http://localhost:3000/api` |
 | PostgreSQL | `127.0.0.1:5432` |
