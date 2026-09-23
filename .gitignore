@@ -50,3 +50,6 @@ next-env.d.ts
 # kilo code
 .kilo
 
+# cache
+.cache
+.pnpm-store
