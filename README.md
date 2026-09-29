@@ -17,8 +17,8 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml up -
 | 前端 | `http://localhost:3000` |
 | AI 工作区 | `http://localhost:3000/ai` |
 | 平台管理后台 | `http://localhost:3000/admin` |
-| 后端 | `http://localhost:8000` |
-| 前端同域 API | `http://localhost:3000/api` |
+| 后端业务 API | `http://localhost:8000/v1` |
+| 前端同域 API | `http://localhost:3000/api/v1` |
 | PostgreSQL | `127.0.0.1:5432` |
 | Redis | `127.0.0.1:6379` |
 
@@ -38,7 +38,7 @@ docker compose \
   -f docker-compose.prod.yaml up -d --build
 ```
 
-`docker-compose.prod.yaml` 在 `WEB_PORT` 上提供 HTTP 服务。生产域名的 DNS、HTTPS 证书和 TLS 终止由部署环境的反向代理或入口网关负责，并应将流量转发到该端口。后端公开地址始终为 `WEB_ORIGIN + API_PUBLIC_PATH`，默认是 `https://cogniz.example.com/api`。
+`docker-compose.prod.yaml` 在 `WEB_PORT` 上提供 HTTP 服务。生产域名的 DNS、HTTPS 证书和 TLS 终止由部署环境的反向代理或入口网关负责，并应将流量转发到该端口。后端公开地址始终为 `WEB_ORIGIN + API_PUBLIC_PATH`，业务接口默认位于 `https://cogniz.example.com/api/v1`。
 
 ## 地址配置
 
@@ -47,9 +47,9 @@ docker compose \
 | `WEB_DOMAIN` / `WEB_PORT` | 前端公开域名和宿主机端口 |
 | `WEB_ORIGIN` | 完整前端来源，用于后端来源校验 |
 | `API_DOMAIN` / `API_PORT` | API 对外展示的同域域名和端口 |
-| `API_PUBLIC_PATH` | API 同域路径，固定使用 `/api` |
+| `API_PUBLIC_PATH` | API 同域代理根路径，固定使用 `/api`；业务路由再加 `/v1` |
 | `API_INTERNAL_HOST` / `API_INTERNAL_PORT` | 前端代理访问后端的 Docker 内部地址 |
 | `REDIS_BIND_ADDRESS` / `REDIS_PORT` | Redis 开发环境宿主机监听地址与端口 |
 | `DATA_DIR` | PostgreSQL 与 Redis 的宿主机持久化根目录 |
 
-生产数据库密码与 AI 供应商配置加密密钥保存在被 Git 忽略的 `config/compose.prod.secrets.env`，不放入公开地址配置文件。`AI_PROVIDER_ENCRYPTION_KEY` 写入供应商 API Key 后必须保持稳定，否则已有密钥将无法解密。
+生产数据库密码与 AI、搜索供应商配置加密密钥保存在被 Git 忽略的 `config/compose.prod.secrets.env`，不放入公开地址配置文件。`AI_PROVIDER_ENCRYPTION_KEY` 写入供应商 API Key 后必须保持稳定，否则已有密钥将无法解密。
