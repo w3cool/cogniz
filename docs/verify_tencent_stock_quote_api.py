@@ -16,7 +16,6 @@ from decimal import Decimal
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-
 QUOTE_ENDPOINT = "{scheme}://qt.gtimg.cn/q={query}"
 MINUTE_ENDPOINT = "https://web.ifzq.gtimg.cn/appstock/app/minute/query"
 STOCK_SYMBOLS = ("sh600000", "sz000858", "sh601318", "sz300750")
@@ -60,7 +59,9 @@ def decimal(fields: list[str], index: int) -> Decimal:
     try:
         return Decimal(fields[index])
     except (IndexError, ValueError) as error:
-        raise AssertionError(f"Field {index} is not decimal: {fields[index:index + 1]!r}") from error
+        raise AssertionError(
+            f"Field {index} is not decimal: {fields[index : index + 1]!r}"
+        ) from error
 
 
 class TencentQuoteDocumentTest(unittest.TestCase):
@@ -105,9 +106,7 @@ class TencentQuoteDocumentTest(unittest.TestCase):
                 self.assertLessEqual(latest, high)
                 self.assertLessEqual(abs((latest - previous_close) - change), Decimal("0.011"))
                 expected_change_percent = change / previous_close * 100
-                self.assertLessEqual(
-                    abs(expected_change_percent - change_percent), Decimal("0.02")
-                )
+                self.assertLessEqual(abs(expected_change_percent - change_percent), Decimal("0.02"))
                 expected_amplitude = (high - low) / previous_close * 100
                 self.assertLessEqual(abs(expected_amplitude - amplitude), Decimal("0.02"))
 

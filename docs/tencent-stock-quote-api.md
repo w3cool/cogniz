@@ -1,4 +1,4 @@
-# 腾讯股票行情文本接口解析笔记
+# 腾讯股票行情接口解析与实测笔记
 
 > 主要来源：
 >
@@ -9,7 +9,7 @@
 >
 > 整理日期：2026-09-29
 >
-> 说明：本文是对来源文章的归纳、交叉对照和补充示例，并非原文转载。阿里云资料使用的是 2012 年行情样本，适合了解接口变体，不应直接视为当前协议。两篇分时资料对第 4 列的解释存在冲突，本文依据实时响应给出验证结论。本文引用的来源没有提供正式协议承诺，生产使用前应以实际响应验证字段。
+> 说明：本文是对来源文章的归纳、交叉对照和补充示例，并非原文转载。阿里云资料使用的是 2012 年行情样本，适合了解接口变体，不应直接视为当前协议。两篇分时资料对第 4 列的解释存在冲突，本文依据实时响应给出验证结论。本文引用的来源没有提供正式协议承诺，生产使用前应以实际响应验证字段。仓库中的[实时验证脚本](./verify_tencent_stock_quote_api.py)可重复检查本文的可验证结论。
 
 ## 1. 接口概览
 
@@ -45,19 +45,21 @@ v_sh600000="字段0~字段1~字段2~...";
 
 ## 2. 核心行情字段
 
-以下下标经过两篇资料的原始响应和 2026-09-29 实时响应交叉验证。第 0 至 49 位核心行情结构在本次沪深 A 股样本中一致；第 50 位之后仍应视为易变的扩展字段。
+以下下标经过行情快照资料的原始响应和 2026-09-29 实时响应交叉对照。第 0 至 49 位核心结构在本次沪深 A 股样本中一致；第 50 位之后仍应视为易变的扩展字段。
+
+“字段位置可验证”和“业务名称有官方保证”是两件事。价格、涨跌、高低价、成交量、成交额和盘口位置可以通过计算关系、重复字段及简要接口交叉验证；外盘/内盘、换手率、市盈率、市值、市净率和量比等业务名称来自来源文章，实时响应只能证明这些位置存在且数值形态合理。由于没有腾讯正式协议，后者应视为“来源定义”，不应当作官方契约。
 
 | 下标 | 含义 | 常见单位或格式 |
 | ---: | --- | --- |
-| 0 | 交易所标识 | 沪市常见为 `1`，深市常见为 `51` |
+| 0 | 供应商市场标识 | 沪市样本为 `1`，深市样本为 `51` |
 | 1 | 证券名称 | 文本 |
 | 2 | 证券代码 | 六位代码 |
 | 3 | 最新价 | 元 |
 | 4 | 昨日收盘价 | 元 |
 | 5 | 今日开盘价 | 元 |
 | 6 | 当日累计成交量 | 手 |
-| 7 | 外盘 | 手，通常表示主动买入量 |
-| 8 | 内盘 | 手，通常表示主动卖出量 |
+| 7 | 外盘 | 手，来源文章解释为主动买入量，科创板1手=200股，其他板1手=100股 |
+| 8 | 内盘 | 手，来源文章解释为主动卖出量，科创板1手=200股，其他板1手=100股 |
 | 30 | 数据更新时间 | `yyyyMMddHHmmss` |
 | 31 | 涨跌额 | 元 |
 | 32 | 涨跌幅 | 百分比数值 |
@@ -73,7 +75,7 @@ v_sh600000="字段0~字段1~字段2~...";
 | 42 | 当日最低价的重复字段 | 元 |
 | 43 | 振幅 | 百分比数值 |
 | 44 | 流通市值 | 亿元 |
-| 45 | 总市值 | 亿元 |
+| 45 | 总市值 | 亿元；与简要接口下标 9 一致 |
 | 46 | 市净率 | 倍数 |
 | 47 | 涨停价 | 元 |
 | 48 | 跌停价 | 元 |
@@ -83,7 +85,7 @@ v_sh600000="字段0~字段1~字段2~...";
 
 第一篇文章的原始响应在市盈率后包含一个空字段，即下标 40。其释义表跳过这个空字段后，把后续字段从 42 开始编号，造成了一位偏移。原始响应、第二篇历史资料以及本次实时测试共同支持上表中的排列：最高价重复字段从 41 开始，市净率为 46，涨停价和跌停价分别为 47、48，量比为 49。
 
-下标 50 之后包含委差、均价、资金流向、币种、证券类别和接口标记等扩展数据。它们可能随市场和版本变化，不宜在缺少多组样本验证时建立强约束。
+来源文章将下标 50 之后解释为委差、均价、资金流向、币种、证券类别和接口标记等扩展数据。本次测试只确认部分位置可解析以及下标 61 的证券分类标记，不足以证明其余业务含义。它们可能随市场和版本变化，应先作为未知供应商字段保存，不宜建立强约束。
 
 ### 原始字段对照方法
 
@@ -142,10 +144,12 @@ sell_levels = [
 下面的示例只依赖 Python 标准库，并对响应外层格式和最低字段数进行检查：
 
 ```python
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from urllib.request import urlopen
+from zoneinfo import ZoneInfo
 
 
 @dataclass(frozen=True)
@@ -162,6 +166,9 @@ class Quote:
 
 
 def fetch_quote(symbol: str) -> Quote:
+    if not re.fullmatch(r"(?:sh|sz)\d{6}", symbol):
+        raise ValueError("Unsupported symbol format")
+
     url = f"https://qt.gtimg.cn/q={symbol}"
     with urlopen(url, timeout=5) as response:
         text = response.read().decode("gbk")
@@ -184,7 +191,9 @@ def fetch_quote(symbol: str) -> Quote:
         volume_lots=int(fields[6]),
         change=Decimal(fields[31]),
         change_percent=Decimal(fields[32]),
-        updated_at=datetime.strptime(fields[30], "%Y%m%d%H%M%S"),
+        updated_at=datetime.strptime(fields[30], "%Y%m%d%H%M%S").replace(
+            tzinfo=ZoneInfo("Asia/Shanghai")
+        ),
     )
 ```
 
@@ -208,6 +217,10 @@ type Quote = {
 }
 
 export function parseTencentQuote(symbol: string, text: string): Quote {
+  if (!/^(?:sh|sz)\d{6}$/.test(symbol)) {
+    throw new Error("Unsupported symbol format")
+  }
+
   const prefix = `v_${symbol}="`
   const normalized = text.trim()
 
@@ -228,16 +241,29 @@ export function parseTencentQuote(symbol: string, text: string): Quote {
     return value
   }
 
+  const requiredNumber = (index: number) => {
+    const value = Number(required(index))
+    if (!Number.isFinite(value)) {
+      throw new Error(`Invalid numeric quote field ${index}`)
+    }
+    return value
+  }
+
+  const updatedAt = required(30)
+  if (!/^\d{14}$/.test(updatedAt)) {
+    throw new Error("Invalid quote timestamp")
+  }
+
   return {
     name: required(1),
     code: required(2),
-    latest: Number(required(3)),
-    previousClose: Number(required(4)),
-    open: Number(required(5)),
-    volumeLots: Number(required(6)),
-    change: Number(required(31)),
-    changePercent: Number(required(32)),
-    updatedAt: required(30),
+    latest: requiredNumber(3),
+    previousClose: requiredNumber(4),
+    open: requiredNumber(5),
+    volumeLots: requiredNumber(6),
+    change: requiredNumber(31),
+    changePercent: requiredNumber(32),
+    updatedAt,
   }
 }
 ```
@@ -331,9 +357,11 @@ https://qt.gtimg.cn/q=s_sz000858
 
 完整行情和简要行情虽然包含部分相同数据，但字段下标不同，应使用不同的数据模型与解析函数。
 
+本次四个股票样本中，简要接口的名称、代码、现价、涨跌额、涨跌幅、成交量、成交额和总市值分别与完整接口的下标 1、2、3、31、32、6、37、45 一致。这种跨接口一致性支持上表的位置判断，但仍不构成长期稳定性承诺。
+
 ### 8.2 盘口分析 `s_pk`
 
-历史盘口分析响应包含四个比例值：
+历史资料把盘口分析响应的四个比例解释为：
 
 | 下标 | 含义 |
 | ---: | --- |
@@ -349,6 +377,8 @@ https://qt.gtimg.cn/q=s_pksz000858
 ```
 
 这些数值采用 0 至 1 之间的小数比例，而不是带 `%` 的字符串。2026-09-29 实测中，浦发银行四项之和为 `0.999`，五粮液四项之和为 `1.000`，差异符合三位小数四舍五入。因此按百分比展示时应乘以 100，并允许总和存在小幅舍入误差。
+
+实时响应只能验证“四个 0 至 1 的比例、总和约为 1”，无法仅凭这四个数证明它们依次代表大单买入、小单买入、大单卖出和小单卖出。表中的业务名称属于历史资料定义；若该分类会影响交易判断，应使用另一份独立数据源交叉验证。
 
 ### 8.3 资金流向 `ff_`
 
@@ -590,6 +620,13 @@ TencentQuoteEnvelope
 
 测试从项目的 FastAPI Docker 容器发起。第一轮使用浦发银行 `sh600000` 和五粮液 `sz000858`；第二轮扩大到浦发银行、五粮液、中国平安 `sh601318`、宁德时代 `sz300750`，并增加无效代码 `sh999999`；第三轮使用电网设备 ETF 华夏 `sz159326`、浦发银行和五粮液测试分时接口，并把内嵌快照与独立快照接口交叉对照。测试只读取公开响应，没有写入外部数据。
 
+最终回归由仓库内的验证脚本执行，共 9 项测试：
+
+```bash
+docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml \
+  exec -T cogniz-api python - < docs/verify_tencent_stock_quote_api.py
+```
+
 | 检查项 | 结果 |
 | --- | --- |
 | HTTP 完整行情 | 通过，响应声明 `charset=GBK` |
@@ -611,8 +648,9 @@ TencentQuoteEnvelope
 | 下标 49 的量比 | 四个样本均可解析为数值 |
 | 五档盘口字段可解析为数值 | 通过 |
 | 简要行情与完整行情的前六个业务字段 | 通过 |
+| 简要行情成交额和总市值 | 分别与完整行情下标 37、45 一致 |
 | 简要行情证券分类 | 主板样本为 `GP-A`，创业板样本为 `GP-A-CYB` |
-| 盘口分析字段数与总和 | 通过，4 项之和约为 1 |
+| 盘口分析字段数与总和 | 通过，4 项之和约为 1；具体业务名称未独立验证 |
 | 资金流向 `ff_` | 失败，接口返回 `pv_none_match` |
 | 无效代码 | 返回 `v_pv_none_match="1";` |
 | 分时接口 HTTP 与编码 | 通过，返回 UTF-8 JSON；MIME 类型误报为 `text/html` |
@@ -622,8 +660,13 @@ TencentQuoteEnvelope
 | 分时第 4 列语义 | 验证为累计成交额，不能直接作为均价 |
 | 分时内嵌快照 | 三个样本均为 88 个字段；抽查字段与独立快照一致 |
 | 分时接口无效代码 | 顶层仍为 `code=0`，但日期、快照和分钟行校验均失败 |
+| 文档 Python 示例 | 6 个代码块均编译通过，快照和分时请求示例可执行 |
+| 文档 TypeScript 示例 | 通过 TypeScript 5.9.3 严格模式编译 |
+| 文档 JSON 示例 | 可被标准 JSON 解析器读取 |
 
 本次测试发生在 A 股收盘后，下标 29 的最近逐笔成交字段为空，因此没有验证其内部记录格式。分时接口覆盖了一个 ETF，但仍没有覆盖停牌证券、指数、其他基金、港股、美股和交易时段内响应。267 条是本次样本结果，不应写成固定协议长度。
+
+测试结论只说明“2026-09-29 的这些样本符合本文规则”。其中字段算术关系、重复位置、跨接口一致性和错误响应已由脚本强验证；外盘/内盘、估值字段、盘口分析四类占比及第 50 位之后多数扩展字段仍是来源资料的业务命名，没有腾讯正式协议或独立权威数据支持。
 
 ## 11. 验证清单
 
@@ -641,4 +684,5 @@ TencentQuoteEnvelope
 - [ ] 将接口时间与系统接收时间分别保存。
 - [ ] 为开盘、盘中、收盘、停牌和无效代码准备样本测试。
 - [ ] 针对沪市、深市、港股和美股使用独立验证规则。
+- [ ] 在升级解析规则或部署前运行 `docs/verify_tencent_stock_quote_api.py`。
 - [ ] 将第三方接口视为非正式依赖，准备缓存、降级和字段变化监控。

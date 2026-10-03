@@ -26,10 +26,21 @@ services:
       context: ./cogniz-api
       dockerfile: Dockerfile.prod
     init: true
-    command: ["fastapi", "run", "src/main.py", "--host", "0.0.0.0", "--port", "${API_INTERNAL_PORT}", "--workers", "${API_WORKERS}"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
+      API_INTERNAL_PORT: ${API_INTERNAL_PORT}
+      API_WORKERS: ${API_WORKERS}
+      TASKIQ_WORKERS: ${TASKIQ_WORKERS:-1}
+      TASKIQ_MAX_ASYNC_TASKS: ${TASKIQ_MAX_ASYNC_TASKS:-4}
+      RUN_LEASE_SECONDS: ${RUN_LEASE_SECONDS:-60}
+      RUN_HEARTBEAT_SECONDS: ${RUN_HEARTBEAT_SECONDS:-10}
+      RUN_MAX_ATTEMPTS: ${RUN_MAX_ATTEMPTS:-3}
+      AGENT_HARD_MAX_OUTPUT_TOKENS: ${AGENT_HARD_MAX_OUTPUT_TOKENS:-32768}
+      AGENT_HARD_TOTAL_TOKENS_LIMIT: ${AGENT_HARD_TOTAL_TOKENS_LIMIT:-128000}
+      AGENT_HARD_REQUEST_LIMIT: ${AGENT_HARD_REQUEST_LIMIT:-20}
+      AGENT_HARD_TOOL_CALLS_LIMIT: ${AGENT_HARD_TOOL_CALLS_LIMIT:-20}
+      AGENT_HARD_TIMEOUT_SECONDS: ${AGENT_HARD_TIMEOUT_SECONDS:-3600}
       ALLOWED_ORIGINS: ${WEB_ORIGIN}
       COOKIE_SECURE: ${COOKIE_SECURE}
       API_ROOT_PATH: ${API_PUBLIC_PATH}
@@ -38,9 +49,9 @@ services:
       DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT}
       AI_PROVIDER_ENCRYPTION_KEY: ${AI_PROVIDER_ENCRYPTION_KEY:?Set AI_PROVIDER_ENCRYPTION_KEY}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_INTERNAL_PORT}/health', timeout=5)"]
+      test: ["CMD", "python", "/app/docker/healthcheck.py"]
       interval: 10s
-      timeout: 5s
+      timeout: 8s
       retries: 10
       start_period: 20s
     depends_on:
@@ -48,6 +59,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    stop_grace_period: 90s
     restart: unless-stopped
     expose:
       - "${API_INTERNAL_PORT}"
