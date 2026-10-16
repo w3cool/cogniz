@@ -4,9 +4,9 @@
 
 ## Agent、Skill 与 Tool
 
-`market_analyst@1.2.1` 为近期行情、走势、综合研究选择 `security-research@1.4.0` 及资讯搜索。bundle 已覆盖日线、区间表现和技术指标，不再同时选择依赖这些单独历史工具的 Skill，避免数据缺口触发换工具重复请求；公司对比继续使用自己的 Skill 和比较工具。代码注册表和后台启停策略继续决定工具权限，已有 Run 使用入队时的版本、摘要和预算。
+`market_analyst@1.0.0` 为近期行情、走势、综合研究选择 `security-research@1.0.0` 及资讯搜索。bundle 已覆盖日线、区间表现和技术指标，不再同时选择依赖这些单独历史工具的 Skill，避免数据缺口触发换工具重复请求；公司对比继续使用自己的 Skill 和比较工具。代码注册表和后台启停策略继续决定工具权限，已有 Run 使用入队时的版本、摘要和预算。
 
-`market_analysis_bundle@1.3.0` 集中采集单只沪深 A 股的报价、估值、60–300 条日线，默认请求 180 条。报价和历史并行读取，估值复用报价响应；完整序列交给确定性 Python 函数计算，而非让模型生成或执行脚本。单个 Tool 调用不等于单个 HTTP 请求，Provider 预算、限流、缓存和恢复快照继续分别执行。
+`market_analysis_bundle@1.0.0` 集中采集单只沪深 A 股的报价、估值、60–300 条日线，默认请求 180 条。报价和历史并行读取，估值复用报价响应；完整序列交给确定性 Python 函数计算，而非让模型生成或执行脚本。单个 Tool 调用不等于单个 HTTP 请求，Provider 预算、限流、缓存和恢复快照继续分别执行。
 
 报告采用 `MarketReportOutput`，包含原有事实/引用字段、章节及最多三个追问建议。完整章节同步进入可读 Markdown，再接受既有 verifier 检查。工具返回的图表列不进入模型上下文；Agent 的 `artifact_builder` 从摘要校验后的完整工具结果生成交付物，避免模型改写曲线数字。
 
@@ -37,10 +37,12 @@
 
 迁移 `009_security_research_instruments.sql` 幂等增加万科 A（000002.SZ）的名称和别名解析，保留已存在的证券记录。证券目录和交易日历仍需持续补充。
 
+`resolve_instrument@1.0.0` 在目录未命中时，通过腾讯证券查询补查名称与裸代码，唯一候选再核验行情身份；完整沪深代码可直接用行情核验。江淮汽车无需增加单个硬编码映射即可解析为 `600418.SH`。多候选不自动选择；网络、预算、治理和完整性失败不再被吞成 `not_found`。查询响应使用现有 Gateway、真实调用预算及恢复快照，来源保留实际请求、原始摘要、时间与缓存状态，不将未经审核的候选写入永久目录。
+
 ## 验证与运行
 
 离线测试使用实际 Provider 解析器、MockTransport 和 Pydantic AI FunctionModel，覆盖单次响应复用、指标预热、单位、日期对齐、部分失败、历史截止、图表证据、流式/非流式报告，以及权限和分享隔离，不调用付费模型。
 
 完整后端测试须通过 `cogniz-api/scripts/test_isolated_database.py` 创建临时 schema；不可直接对用户数据库运行集成测试。另运行 `scripts/evaluate_agents.py` 和 Manifest 摘要门禁。前端执行类型检查、ESLint 和生产构建，并用模拟数据检查实际组件的图表、折叠、详情和追问交互；临时预览路由不发布。
 
-部署继续使用现有 Compose，API、Taskiq Worker 和 maintenance 运行在同一个后端容器。升级后重启后端应用新增迁移，并确认三个进程与健康检查正常。旧 Run 的版本和摘要不能改写；发布资源改变后的旧 Run 若无法恢复，需要重新生成。
+部署继续使用现有 Compose，API、Taskiq Worker 和 maintenance 运行在同一个后端容器。升级后确认三个进程与健康检查正常。所有内置 Agents、Tools、Skills 只保留最新实现，唯一版本和依赖版本统一为 `1.0.0`；Skill 指令统一存放在 `instructions.md`。旧 Run 的版本和摘要不能改写；可使用 `python scripts/purge_incompatible_conversations.py` 预览，再显式加 `--apply` 清理不兼容对话、关联执行快照与工具结果，保留兼容对话和已结算用量，并暂停引用已删除对话的定时任务。
