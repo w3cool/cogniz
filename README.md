@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-HK.md)
 
-Cogniz (displayed as 格致 in the interface) is an AI workspace for news research and securities analysis. It combines multi-turn conversations, web retrieval, market data and technical analysis, traceable Agent execution, and scheduled tasks that run in the background.
+Cogniz is an AI workspace for news research and securities analysis. It combines multi-turn conversations, web retrieval, market data and technical analysis, traceable Agent execution, and scheduled tasks that run in the background.
 
 The project uses a Next.js frontend, a FastAPI backend, PostgreSQL, and Redis. Users ask questions in the browser; the backend selects Agents, Skills, and Tools, persists execution state, evidence, and results, and streams answers and progress back through SSE. Docker is the preferred environment for development, debugging, and testing, so project dependencies for Python and Node.js do not need to be installed on the host.
 
