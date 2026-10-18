@@ -371,7 +371,7 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml exec
 
 開發 Compose 掛載前後端原始碼。前端 `node_modules` 和 `.next` 使用獨立命名卷；PostgreSQL、Redis 數據使用宿主機目錄，避免混用本機依賴和容器依賴。
 
-FastAPI 與 Worker 在開發模式下支援自動重載；修改 maintenance、啟動腳本後重啟整個後端容器，修改依賴後重新建置映像。前端修改依賴後，更新命名卷中的依賴步驟見[前端 README](cogniz-web/README.md)。
+FastAPI 與 Worker 在開發模式下支援自動重載；修改 maintenance、啟動腳本後重啟整個後端容器，修改依賴後重新建置映像。前端修改依賴後，更新命名卷中的依賴步驟見[前端 README](cogniz-web/README.zh-HK.md)。
 
 ```bash
 # 查看前後端日誌
@@ -417,7 +417,7 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml exec
   npm run lint --workspace=web
 ```
 
-生產前端建置請使用下一節的生產 Compose 建置方式；應用、共享 UI 和開發約定分別見[前端 README](cogniz-web/README.md)、[前端 AGENTS.md](cogniz-web/AGENTS.md) 與[後端 AGENTS.md](cogniz-api/AGENTS.md)。
+生產前端建置請使用下一節的生產 Compose 建置方式；應用、共享 UI 和開發約定分別見[前端 README](cogniz-web/README.zh-HK.md)、[前端 AGENTS.md](cogniz-web/AGENTS.md) 與[後端 AGENTS.md](cogniz-api/AGENTS.md)。
 
 ## 生產部署與維護
 
@@ -484,8 +484,8 @@ data/
 
 | 文件 | 內容 |
 | --- | --- |
-| [前端 README](cogniz-web/README.md) | 頁面結構、元件、國際化、Docker 與前端開發 |
-| [後端 README](cogniz-api/README.md) | API、Agent/Skill/Tool、數據供應商與實現約定 |
+| [前端 README](cogniz-web/README.zh-HK.md) | 頁面結構、元件、國際化、Docker 與前端開發 |
+| [後端 README](cogniz-api/README.zh-HK.md) | API、Agent/Skill/Tool、數據供應商與實現約定 |
 | [API 部署說明](cogniz-api/docs/deployment.md) | Supervisor、Taskiq、outbox、租約、恢復與健康檢查 |
 | [Agent 執行契約](cogniz-api/src/agent_runtime/README.md) | TaskSpec、ToolRuntime、事件、用量與結果契約 |
 | [執行治理說明](cogniz-api/src/modules/governance/README.md) | 配額、成本估算、審計和管理員治理 API |
