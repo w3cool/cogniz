@@ -195,7 +195,7 @@ A typical question follows this flow:
 
 The queue uses at-least-once delivery, with database execution constraints handling duplicate messages. Task state remains in the database if the API restarts or the queue is temporarily unavailable. Recovery depends on leases, retry limits, execution deadlines, and external service availability.
 
-Database access uses `psycopg` connection pools and parameterized raw SQL, without an ORM. Startup initialization runs domain bootstraps and versioned migrations under a shared database lock. Migrations have checksums, and files already applied must not be modified directly.
+Database access uses `psycopg` connection pools and parameterized raw SQL, without an ORM. Startup initializes the final schema and default data from `cogniz-api/src/infrastructure/database/migrations/001_initial_schema.sql` in one transaction under a shared database lock. The baseline is recorded with a checksum and runs once; subsequent startups preserve existing data and configuration. Historical schema changes and data backfills are not replayed.
 
 ## Technology stack
 
@@ -237,7 +237,7 @@ cogniz/
 │   ├── src/skills/                 # Skill Manifests and instructions.md
 │   ├── src/tools/                  # Search, market data, and computation tools
 │   ├── src/plugins/                # Plugin registration extension boundary
-│   ├── src/infrastructure/         # Database migrations, queues, and market data gateway
+│   ├── src/infrastructure/         # Database initialization, queues, and market data gateway
 │   ├── src/workers/                # Taskiq tasks, outbox, and recovery loops
 │   ├── requirements/              # Runtime and development dependencies
 │   ├── scripts/                   # Isolated tests, evaluation, and maintenance scripts
@@ -279,7 +279,7 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml up -
 docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml ps
 ```
 
-The first startup builds both images, installs dependencies, initializes the database, and runs migrations. The frontend waits for the backend health check to pass before starting.
+The first startup builds both images, installs dependencies, and initializes the database from the single SQL baseline. The frontend waits for the backend health check to pass before starting.
 
 ### 3. Register and configure providers
 
@@ -460,7 +460,7 @@ data/
 The actual root is set by `DATA_DIR` in the corresponding environment file. Data directories are ignored by Git. Stopping or rebuilding application containers does not delete these host directories.
 
 - Backups and restoration must account for both PostgreSQL data and `AI_PROVIDER_ENCRYPTION_KEY`. Redis stores queues and caches, not a replacement for PostgreSQL execution records and results.
-- When upgrading, synchronize the parent repository and its pinned submodule commits, and back up data before deployment. Startup automatically applies new migrations; do not modify migrations already applied.
+- When upgrading, synchronize the parent repository and its pinned submodule commits, and back up data before deployment. The SQL baseline initializes new databases; older incompatible schemas require an explicit upgrade plan. Startup does not reset databases or replay removed migrations. Do not modify an already-applied baseline.
 - Keep the API image's startup mode as `dev` or `prod`. A temporary FastAPI-only process is not a replacement for the complete API, Worker, and maintenance process groups.
 - Container health checks cover process groups, Redis, and API/database connectivity. A healthy container does not establish provider availability or completion of every task. Scheduled execution has a separate `/v1/scheduled-tasks/status` heartbeat; Run and outbox state also need separate inspection.
 

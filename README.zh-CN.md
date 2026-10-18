@@ -195,7 +195,7 @@ flowchart LR
 
 消息队列采用至少一次投递，重复消息由数据库执行约束处理。API 进程重启或队列暂时离线时，任务状态仍保存在数据库；恢复结果取决于租约、重试次数、执行期限和外部服务可用性。
 
-数据库使用 `psycopg` 连接池与参数化原生 SQL，不使用 ORM。启动初始化在共享数据库锁内执行领域 bootstrap 和版本化迁移，迁移文件带 checksum，已经应用的迁移不得直接修改。
+数据库使用 `psycopg` 连接池与参数化原生 SQL，不使用 ORM。启动时在共享数据库锁和单个事务内执行 `cogniz-api/src/infrastructure/database/migrations/001_initial_schema.sql`，直接创建最终表结构及默认数据。初始化基线记录 checksum，仅执行一次，后续启动保留已有数据与配置，不再重放历次改表和数据回填。
 
 ## 技术栈
 
@@ -237,7 +237,7 @@ cogniz/
 │   ├── src/skills/                 # Skill Manifest 与 instructions.md
 │   ├── src/tools/                  # 搜索、行情与计算工具
 │   ├── src/plugins/                # Plugin 注册扩展边界
-│   ├── src/infrastructure/         # 数据库迁移、队列与行情网关
+│   ├── src/infrastructure/         # 数据库初始化、队列与行情网关
 │   ├── src/workers/                # Taskiq 任务、outbox 与恢复循环
 │   ├── requirements/              # 运行与开发依赖
 │   ├── scripts/                   # 隔离测试、评测和维护脚本
@@ -279,7 +279,7 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml up -
 docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml ps
 ```
 
-首次启动会构建前后端镜像、安装依赖、初始化数据库并运行迁移。前端等待后端健康检查通过后启动。
+首次启动会构建前后端镜像、安装依赖，并使用单个 SQL 基线初始化数据库。前端等待后端健康检查通过后启动。
 
 ### 3. 注册与配置供应商
 
@@ -460,7 +460,7 @@ data/
 实际目录由对应环境文件的 `DATA_DIR` 指定，数据目录已被 Git 忽略。停止或重建应用容器不会主动删除这些宿主机目录。
 
 - 备份与恢复应同时考虑 PostgreSQL 数据和 `AI_PROVIDER_ENCRYPTION_KEY`；Redis 保存队列及缓存，不能替代 PostgreSQL 中的执行记录和结果。
-- 升级时同步父仓库与其锁定的子模块版本，在部署前备份数据；新增迁移由启动流程自动应用，不修改已经应用的迁移文件。
+- 升级时同步父仓库与其锁定的子模块版本，在部署前备份数据。SQL 基线用于新数据库初始化，旧版不兼容表结构需要明确的升级方案；启动不会清空数据库或重放已移除的历史迁移，不修改已经应用的基线。
 - API 镜像的启动模式保持 `dev` 或 `prod`，不要只启动一个临时 FastAPI 进程替代完整的 API、Worker 和 maintenance 进程组。
 - 容器健康检查包含进程组、Redis 与 API/数据库检查。健康不代表供应商可用或所有任务已完成；定时调度另有 `/v1/scheduled-tasks/status` 心跳，Run 和 outbox 状态也需分别观察。
 

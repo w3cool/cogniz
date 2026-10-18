@@ -195,7 +195,7 @@ flowchart LR
 
 訊息佇列採用至少一次投遞，重複訊息由數據庫執行約束處理。API 程序重啟或佇列暫時離線時，任務狀態仍儲存在數據庫；恢復結果取決於租約、重試次數、執行期限和外部服務可用性。
 
-數據庫使用 `psycopg` 連線池與參數化原生 SQL，不使用 ORM。啟動初始化在共享數據庫鎖內執行領域 bootstrap 和版本化遷移，遷移檔案帶 checksum，已套用的遷移不得直接修改。
+數據庫使用 `psycopg` 連線池與參數化原生 SQL，不使用 ORM。啟動時在共享數據庫鎖和單一交易內執行 `cogniz-api/src/infrastructure/database/migrations/001_initial_schema.sql`，直接建立最終資料表結構及預設數據。初始化基線記錄 checksum，只執行一次，後續啟動保留已有數據與設定，不再重播歷次改表和數據回填。
 
 ## 技術組合
 
@@ -237,7 +237,7 @@ cogniz/
 │   ├── src/skills/                 # Skill Manifest 與 instructions.md
 │   ├── src/tools/                  # 搜索、行情與計算工具
 │   ├── src/plugins/                # Plugin 註冊擴展邊界
-│   ├── src/infrastructure/         # 數據庫遷移、佇列與行情網關
+│   ├── src/infrastructure/         # 數據庫初始化、佇列與行情網關
 │   ├── src/workers/                # Taskiq 任務、outbox 與恢復循環
 │   ├── requirements/              # 執行與開發依賴
 │   ├── scripts/                   # 隔離測試、評測和維護腳本
@@ -279,7 +279,7 @@ docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml up -
 docker compose --env-file config/compose.dev.env -f docker-compose.dev.yaml ps
 ```
 
-首次啟動會建置前後端映像、安裝依賴、初始化數據庫並執行遷移。前端等待後端健康檢查通過後啟動。
+首次啟動會建置前後端映像、安裝依賴，並使用單一 SQL 基線初始化數據庫。前端等待後端健康檢查通過後啟動。
 
 ### 3. 註冊與設定供應商
 
@@ -460,7 +460,7 @@ data/
 實際目錄由對應環境檔案的 `DATA_DIR` 指定，數據目錄已被 Git 忽略。停止或重建應用容器不會主動刪除這些宿主機目錄。
 
 - 備份與恢復應同時考慮 PostgreSQL 數據和 `AI_PROVIDER_ENCRYPTION_KEY`；Redis 儲存佇列及快取，不能替代 PostgreSQL 中的執行記錄和結果。
-- 升級時同步父儲存庫與其鎖定的子模組版本，在部署前備份數據；新增遷移由啟動流程自動應用，不修改已套用的遷移檔案。
+- 升級時同步父儲存庫與其鎖定的子模組版本，在部署前備份數據。SQL 基線用於新數據庫初始化，舊版不相容資料表結構需要明確的升級方案；啟動不會清空數據庫或重播已移除的歷史遷移，不修改已套用的基線。
 - API 映像的啟動模式保持 `dev` 或 `prod`，不要只啟動一個臨時 FastAPI 程序替代完整的 API、Worker 和 maintenance 程序組。
 - 容器健康檢查包含程序組、Redis 與 API/數據庫檢查。健康不代表供應商可用或所有任務已完成；定時調度另有 `/v1/scheduled-tasks/status` 心跳，Run 和 outbox 狀態也需分別觀察。
 
