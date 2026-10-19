@@ -14,6 +14,7 @@ This repository is the integration entry point. It manages the frontend and back
   - [Workspace preview](#workspace-preview)
   - [Research workflow in screenshots](#research-workflow-in-screenshots)
   - [Sample generated report](#sample-generated-report)
+  - [Administration preview](#administration-preview)
 - [Architecture and execution flow](#architecture-and-execution-flow)
 - [Technology stack](#technology-stack)
 - [Repository structure](#repository-structure)
@@ -161,6 +162,35 @@ Administrators manage the platform through a separate `/admin` interface:
 The backend also exposes execution governance APIs: provider and user quotas, usage and estimated costs recorded per execution attempt, Run/step/tool-call inspection, status metrics, and audit records. These APIs require administrator permissions; some capabilities do not yet have a complete administration page.
 
 Provider API keys are encrypted with Fernet, and administration APIs return masked values only. Passwords use Argon2 hashing, and sessions use HttpOnly cookies. Model-request, tool-call, cumulative-token, and timeout budgets are snapshotted when an Agent Run is queued. Questions and TaskSpec input cannot expand the permissions granted by the platform.
+
+#### Administration preview
+
+Screenshots show an example deployment; displayed model names and budget values reflect that configuration.
+
+**Agent registry and policies**
+
+[![Registered Agents, their Tool and Skill dependencies, enabled state, and execution budgets](assets/4c55d979-a593-48dc-b494-f8cf81268214.png)](assets/4c55d979-a593-48dc-b494-f8cf81268214.png)
+
+<details>
+<summary>View more screenshots</summary>
+
+**System execution budgets**
+
+[![Default output and total token budgets, model requests, Tool calls, timeout, and environment hard limits](assets/60b63d6e-79db-477e-9ccb-58823a2898e6.png)](assets/60b63d6e-79db-477e-9ccb-58823a2898e6.png)
+
+**Model providers and defaults**
+
+[![Bailian and Qianfan provider configurations, available model counts, enabled state, and the system default model](assets/dbdbfc82-359e-4dea-804c-be15b66c75db.png)](assets/dbdbfc82-359e-4dea-804c-be15b66c75db.png)
+
+**Independent search configuration**
+
+[![Baidu search configuration with key status, result count, call limit, and enable switch](assets/ca527d0a-02cb-4b6c-82b6-ccfd4a0b01eb.png)](assets/ca527d0a-02cb-4b6c-82b6-ccfd4a0b01eb.png)
+
+**Trending suggestion management**
+
+[![Automatic refresh policy, manual generation, and editable question pools for zh-CN, zh-HK, and English](assets/bb498672-3b9f-4483-9d83-4f63adf78b76.png)](assets/bb498672-3b9f-4483-9d83-4f63adf78b76.png)
+
+</details>
 
 ## Architecture and execution flow
 
